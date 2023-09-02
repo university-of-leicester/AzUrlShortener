@@ -10,22 +10,16 @@ Input:
 
         // [Optional] all other properties
     }
+
 Output:
     {
-        "Url": "https://docs.microsoft.com/en-ca/azure/azure-functions/functions-create-your-first-function-visual-studio",
-        "Title": "My Title",
-        "ShortUrl": null,
-        "Clicks": 0,
-        "IsArchived": true,
-        "PartitionKey": "a",
-        "RowKey": "azFunc2",
-        "Timestamp": "2020-07-23T06:22:33.852218-04:00",
-        "ETag": "W/\"datetime'2020-07-23T10%3A24%3A51.3440526Z'\""
+        "ShortUrl": "http://c5m.ca/azFunc",
+        "LongUrl": "https://docs.microsoft.com/en-ca/azure/azure-functions/functions-create-your-first-function-visual-studio"
     }
-
 */
 
 using Cloud5mins.ShortenerTools.Core.Domain;
+using Cloud5mins.ShortenerTools.Core.Messages;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -38,25 +32,25 @@ using System.Threading.Tasks;
 
 namespace Cloud5mins.ShortenerTools.Functions
 {
-    public class UrlArchive
-    {
 
+    public class UrlDelete
+    {
         private readonly ILogger _logger;
         private readonly ShortenerSettings _settings;
 
-        public UrlArchive(ILoggerFactory loggerFactory, ShortenerSettings settings)
+        public UrlDelete(ILoggerFactory loggerFactory, ShortenerSettings settings)
         {
             _logger = loggerFactory.CreateLogger<UrlList>();
             _settings = settings;
         }
 
-        [Function("UrlArchive")]
+        [Function("UrlDelete")]
         public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/UrlArchive")] HttpRequestData req,
-        ExecutionContext context)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "api/UrlDelete")] HttpRequestData req,
+            ExecutionContext context
+        )
         {
-            _logger.LogInformation($"HTTP trigger - UrlArchive");
-
+            _logger.LogInformation($"__trace deleting shortURL: {req}");
             string userId = string.Empty;
             ShortUrlEntity input;
             ShortUrlEntity result;
@@ -80,7 +74,16 @@ namespace Cloud5mins.ShortenerTools.Functions
 
                 StorageTableHelper stgHelper = new StorageTableHelper(_settings.DataStorage);
 
-                result = await stgHelper.ArchiveShortUrlEntity(input,true);
+                ShortUrlEntity eShortUrl = await stgHelper.GetShortUrlEntity(input);
+
+                if ( ! (eShortUrl?.IsArchived??false))
+                {
+                    var notArchivedResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await notArchivedResponse.WriteAsJsonAsync(new { message = "Not found or not archived", requested=input, found=eShortUrl });
+                    return notArchivedResponse;
+                }
+
+                result = await stgHelper.DeleteShortUrlEntity(eShortUrl);
             }
             catch (Exception ex)
             {

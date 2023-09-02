@@ -16,7 +16,7 @@ Output:
         "Title": "My Title",
         "ShortUrl": null,
         "Clicks": 0,
-        "IsArchived": true,
+        "IsArchived": false,
         "PartitionKey": "a",
         "RowKey": "azFunc2",
         "Timestamp": "2020-07-23T06:22:33.852218-04:00",
@@ -38,24 +38,24 @@ using System.Threading.Tasks;
 
 namespace Cloud5mins.ShortenerTools.Functions
 {
-    public class UrlArchive
+    public class UrlUnarchive
     {
 
         private readonly ILogger _logger;
         private readonly ShortenerSettings _settings;
 
-        public UrlArchive(ILoggerFactory loggerFactory, ShortenerSettings settings)
+        public UrlUnarchive(ILoggerFactory loggerFactory, ShortenerSettings settings)
         {
             _logger = loggerFactory.CreateLogger<UrlList>();
             _settings = settings;
         }
 
-        [Function("UrlArchive")]
+        [Function("UrlUnarchive")]
         public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/UrlArchive")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/UrlUnarchive")] HttpRequestData req,
         ExecutionContext context)
         {
-            _logger.LogInformation($"HTTP trigger - UrlArchive");
+            _logger.LogInformation($"HTTP trigger - UrlUnarchive");
 
             string userId = string.Empty;
             ShortUrlEntity input;
@@ -80,7 +80,7 @@ namespace Cloud5mins.ShortenerTools.Functions
 
                 StorageTableHelper stgHelper = new StorageTableHelper(_settings.DataStorage);
 
-                result = await stgHelper.ArchiveShortUrlEntity(input,true);
+                result = await stgHelper.ArchiveShortUrlEntity(input,false);
             }
             catch (Exception ex)
             {
